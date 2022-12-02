@@ -2,24 +2,23 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 
+	"github.com/lualfe/portsservice/config"
 	"github.com/lualfe/portsservice/internal/infrastructure/repository"
 	"github.com/lualfe/portsservice/internal/usecase"
 )
 
 func main() {
-	file := flag.String("filename", "", "the path and name of the file containing the ports")
-	flag.Parse()
+	cfg := config.NewConfig()
 
-	db := repository.NewInMemory()
+	db := repository.NewInMemory(cfg.RedisAddress, cfg.RedisPassword)
 
 	portsUseCase := usecase.NewPorts(db)
 
 	ctx := context.Background()
 
-	if err := portsUseCase.Save(ctx, *file); err != nil {
+	if err := portsUseCase.Save(ctx, cfg.FileName); err != nil {
 		fmt.Println(err)
 	}
 }
