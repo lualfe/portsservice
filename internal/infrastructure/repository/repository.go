@@ -17,6 +17,7 @@ type InMemory struct {
 
 type redisClient interface {
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	Pipelined(ctx context.Context, fn func(redis.Pipeliner) error) ([]redis.Cmder, error)
 }
 
 // NewInMemory starts a new InMemory database.
@@ -35,4 +36,16 @@ func (i *InMemory) UpsertPort(ctx context.Context, port entity.Port) error {
 	data, _ := json.Marshal(port)
 	cmd := i.client.Set(ctx, port.Key, string(data), 0)
 	return cmd.Err()
+}
+
+func (i *InMemory) BulkUpsertPort(ctx context.Context, ports []entity.Port) error {
+	_, err := i.client.Pipelined(ctx, func(pipeliner redis.Pipeliner) error {
+		for _, p := range ports {
+			data, _ := json.Marshal(p)
+			pipeliner.Set(ctx, p.Key, string(data), 0)
+		}
+		return nil
+	})
+
+	return err
 }

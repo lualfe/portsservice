@@ -11,6 +11,7 @@ import (
 // PortsRepo has operations on a repository of ports.
 type PortsRepo interface {
 	UpsertPort(ctx context.Context, port entity.Port) error
+	BulkUpsertPort(ctx context.Context, ports []entity.Port) error
 }
 
 // PortsStreamer streams reader data.

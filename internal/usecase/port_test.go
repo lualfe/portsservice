@@ -12,11 +12,11 @@ import (
 	"github.com/lualfe/portsservice/pkg/portsstream"
 )
 
-func setup(t *testing.T) (*mock.MockportsStreamer, *mock.MockportsRepo) {
+func setup(t *testing.T) (*mock.MockPortsStreamer, *mock.MockPortsRepo) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	return mock.NewMockportsStreamer(ctrl), mock.NewMockportsRepo(ctrl)
+	return mock.NewMockPortsStreamer(ctrl), mock.NewMockPortsRepo(ctrl)
 }
 
 func TestPorts_Save(t *testing.T) {
@@ -24,11 +24,14 @@ func TestPorts_Save(t *testing.T) {
 		streamer, repo := setup(t)
 
 		resultChan := make(chan portsstream.Result)
-		portResult := entity.Port{Key: "PORT_KEY"}
+		port := entity.Port{Key: "PORT_KEY"}
+		portResult := []entity.Port{
+			port,
+		}
 
 		successStreamMock(streamer, resultChan)
-		successStreamStartMock(streamer, portResult, resultChan)
-		successRepoUpsert(repo, portResult)
+		successStreamStartMock(streamer, port, resultChan)
+		successRepoBulkUpsert(repo, portResult)
 
 		p := &Ports{
 			streamer: streamer,
@@ -88,8 +91,9 @@ func TestPorts_Save(t *testing.T) {
 
 		want := errors.New("upsert error")
 		repo.EXPECT().
-			UpsertPort(gomock.Any(), gomock.Any()).
-			Return(want)
+			BulkUpsertPort(gomock.Any(), gomock.Any()).
+			Return(want).
+			MinTimes(1)
 
 		p := &Ports{
 			streamer: streamer,
@@ -103,7 +107,7 @@ func TestPorts_Save(t *testing.T) {
 	})
 }
 
-func successStreamStartMock(streamer *mock.MockportsStreamer, port entity.Port, resultChan chan portsstream.Result) {
+func successStreamStartMock(streamer *mock.MockPortsStreamer, port entity.Port, resultChan chan portsstream.Result) {
 	streamer.EXPECT().
 		Start(gomock.Any(), gomock.Any()).
 		Do(func(_ any, _ any) {
@@ -113,15 +117,21 @@ func successStreamStartMock(streamer *mock.MockportsStreamer, port entity.Port, 
 		Times(1)
 }
 
-func successStreamMock(streamer *mock.MockportsStreamer, resultChan chan portsstream.Result) {
+func successStreamMock(streamer *mock.MockPortsStreamer, resultChan chan portsstream.Result) {
 	streamer.EXPECT().
 		Stream().
 		Return(resultChan).
 		Times(1)
 }
 
-func successRepoUpsert(repo *mock.MockportsRepo, port entity.Port) {
+func successRepoUpsert(repo *mock.MockPortsRepo, port entity.Port) {
 	repo.EXPECT().
 		UpsertPort(gomock.Any(), port).
+		Return(nil)
+}
+
+func successRepoBulkUpsert(repo *mock.MockPortsRepo, ports []entity.Port) {
+	repo.EXPECT().
+		BulkUpsertPort(gomock.Any(), ports).
 		Return(nil)
 }
